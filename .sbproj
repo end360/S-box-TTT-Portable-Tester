@@ -1,0 +1,95 @@
+{
+  "Title": "TTT Portable Traitor Tester",
+  "Type": "addon",
+  "Org": "endthreesixty",
+  "Ident": "ttt_portable_tester",
+  "Tags": "ttt equipment detective",
+  "Schema": 1,
+  "HasAssets": true,
+  "AssetsPath": "",
+  "Resources": null,
+  "MenuResources": null,
+  "HasCode": true,
+  "CodePath": "/code/",
+  "PackageReferences": [],
+  "EditorReferences": null,
+  "Metadata": {
+    "CsProjName": "",
+    "PrimaryAsset": "",
+    "PhysicsMins": "-1,-1,-1",
+    "PhysicsMaxs": "1,1,1",
+    "RenderMins": "-1,-1,-1",
+    "RenderMaxs": "-1,-1,-1",
+    "Compiler": {
+      "RootNamespace": "end360",
+      "DefineConstants": "SANDBOX;ADDON;DEBUG",
+      "NoWarn": "1701;1702;1591;",
+      "WarningsAsErrors": "",
+      "Nullables": true,
+      "References": [],
+      "DistinctReferences": []
+    },
+    "PackageSettings": [
+      {
+        "DisplayType": "Integer",
+        "Choices": [],
+        "ConVarName": "ttt_portable_tester_max_uses",
+        "DisplayName": "Maximum Uses",
+        "DefaultValue": "3.35181",
+        "Description": "Maximum number of uses the portable tester has.",
+        "Group": "TTT: Portable Tester",
+        "Minimum": 1,
+        "Maximum": 100
+      },
+      {
+        "DisplayType": "Boolean",
+        "Choices": [],
+        "ConVarName": "ttt_portable_tester_detective_use",
+        "DisplayName": "Detective Usable",
+        "DefaultValue": "false",
+        "Description": "Should detectives be allowed to use the portable tester?",
+        "Group": "TTT: Portable Tester"
+      },
+      {
+        "DisplayType": "Boolean",
+        "Choices": [],
+        "ConVarName": "ttt_portable_tester_broadcast_use",
+        "DisplayName": "Broadcast Use",
+        "DefaultValue": "false",
+        "Description": "Should a popup message be sent to everyone with the test result? By default it only sends to the detectives.",
+        "Group": "TTT: Portable Tester"
+      },
+      {
+        "DisplayType": "Boolean",
+        "Choices": [],
+        "ConVarName": "ttt_portable_tester_regenerate",
+        "DisplayName": "Regenerate Uses",
+        "DefaultValue": "false",
+        "Description": "Should uses of the portable generator regenerate over time?",
+        "Group": "TTT: Portable Tester"
+      },
+      {
+        "DisplayType": "Float",
+        "Choices": [],
+        "ConVarName": "ttt_portable_tester_regenerate_time",
+        "DisplayName": "Regenerate Time",
+        "DefaultValue": "30",
+        "Description": "How many seconds should it take to regenerate one use of the portable tester?",
+        "Group": "TTT: Portable Tester",
+        "Minimum": 1,
+        "Maximum": 300,
+        "Step": 1
+      },
+      {
+        "DisplayType": "Boolean",
+        "Choices": [],
+        "ConVarName": "ttt_portable_tester_multiple_use",
+        "DisplayName": "Multiple Uses per User",
+        "DefaultValue": "false",
+        "Description": "Allow players to use the tester multiple times?",
+        "Group": "TTT: Portable Tester"
+      }
+    ],
+    "ParentPackage": "thieves.terrortown"
+  }
+}
