@@ -52,7 +52,7 @@ namespace end360.TTT
                 RebuildHUD();
         }
 
-        protected override int BuildHash() => System.HashCode.Combine(Instance, ShouldDraw, ShouldDrawRecharge ? RechargeTime : -1, PortableTesterPlaced.AllowMultiUse, PortableTesterPlaced.DetectiveUsable, (Game.LocalPawn as TerrorTown.Player)?.Team);
+        protected override int BuildHash() => System.HashCode.Combine(Instance, Tester?.Uses, ShouldDraw, ShouldDrawRecharge ? RechargeTime : -1, PortableTesterPlaced.AllowMultiUse, PortableTesterPlaced.DetectiveUsable, (Game.LocalPawn as TerrorTown.Player)?.Team);
 
     }
 }

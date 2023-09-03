@@ -101,7 +101,7 @@ namespace end360.TTT
                 && (AllowMultiUse || !Users.Contains(ply));
 
         [Event("end360.ttt.player_tested")]
-        public void OnTest(TerrorTown.Player ply, TeamAlignment alignment)
+        public static void OnTest(PortableTesterPlaced tester, TerrorTown.Player ply, TeamAlignment alignment)
         {
             MyGame.Current.EventSystem.AddEventToLog(new BaseEvent()
             {
@@ -112,25 +112,25 @@ namespace end360.TTT
 
             if (BroadcastMessage)
             {
-                PopupSystem.DisplayPopup(To.Everyone, $"{ply.Client.Name} tested as a {alignment}.", ply.Team.TeamColour, "Portable Tester");
+                PopupSystem.DisplayPopup(To.Everyone, $"{ply.Client.Name} tested as {alignment}.", ply.Team.TeamColour, "Portable Tester");
             }
-            else if (Owner != null)
+            else if (tester.Owner != null)
             {
                 PopupSystem.DisplayPopup(To.Multiple(Game.Clients.Where(c =>
                 {
                     if (c.Pawn is TerrorTown.Player ply)
                         return ply.Team is Detective;
                     return false;
-                })), $"{ply.Client.Name} tested as a {alignment}.", ply.Team.TeamColour, "Portable Tester");
+                })), $"{ply.Client.Name} tested as {alignment}.", ply.Team.TeamColour, "Portable Tester");
             }
 
             if (alignment == TeamAlignment.Traitor)
             {
-                PlaySound("test negative").SetVolume(4);
+                tester.PlaySound("test negative").SetVolume(4);
             }
             else
             {
-                PlaySound("test positive").SetVolume(8);
+                tester.PlaySound("test positive").SetVolume(8);
             }
         }
 
@@ -145,7 +145,7 @@ namespace end360.TTT
         {
             if (user is TerrorTown.Player ply && ply.Team != null)
             {
-                Event.Run("end360.ttt.player_tested", ply, ply.Team.TeamAlignment);
+                Event.Run("end360.ttt.player_tested", this, ply, ply.Team.TeamAlignment);
                 Users.Add(ply);
                 OnUseClient(user); // I was trying to send it to just the person who used it but I can't seem to figure out how to get it to accept To
                 
