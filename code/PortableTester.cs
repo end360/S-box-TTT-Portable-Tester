@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TerrorTown;
 
-namespace end360
+namespace end360.TTT
 {
     [Library("ttt_equipment_portabletester")]
     [HammerEntity]
@@ -27,11 +27,16 @@ namespace end360
             {
                 var placed = new PortableTesterPlaced();
                 placed.Position = Owner.AimRay.Position + Owner.AimRay.Forward * 34;
-                Log.Info(placed.Position);
                 placed.Velocity = Owner.AimRay.Forward * 180;
                 placed.Owner = Owner;
                 Delete();
             }
+        }
+
+        public override void SimulateAnimator(CitizenAnimationHelper anim)
+        {
+            base.SimulateAnimator(anim);
+            anim.HoldType = CitizenAnimationHelper.HoldTypes.HoldItem;
         }
     }
 }

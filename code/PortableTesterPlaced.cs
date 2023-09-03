@@ -6,23 +6,23 @@ using System.Text;
 using System.Threading.Tasks;
 using TerrorTown;
 
-namespace end360
+namespace end360.TTT
 {
     [Category("Equipment")]
     public partial class PortableTesterPlaced : ModelEntity, IUse
     {
         #region Console Variables
-        [ConVar.Server("ttt_portable_tester_max_uses", Help = "Maximum number of uses the portable tester has.", Saved = true)]
+        [ConVar.Replicated("ttt_portable_tester_max_uses", Help = "Maximum number of uses the portable tester has.", Saved = true)]
         public static int MaxUses { get; set; } = 3;
-        [ConVar.Server("ttt_portable_tester_detective_use", Help = "Should detectives be allowed to use the portable tester?", Saved = true)]
+        [ConVar.Replicated("ttt_portable_tester_detective_use", Help = "Should detectives be allowed to use the portable tester?", Saved = true)]
         public static bool DetectiveUsable { get; set; } = false;
         [ConVar.Server("ttt_portable_tester_broadcast_use", Help = "Should a popup message be sent to everyone with the test result? By default it only sends to the detectives.", Saved = true)]
         public static bool BroadcastMessage { get; set; } = false;
-        [ConVar.Server("ttt_portable_tester_regenerate", Help = "Should uses of the portable tester regenerate over time?", Saved = true)]
+        [ConVar.Replicated("ttt_portable_tester_regenerate", Help = "Should uses of the portable tester regenerate over time?", Saved = true)]
         public static bool ShouldRecharge { get; set; } = false;
-        [ConVar.Server("ttt_portable_tester_regenerate_time", Help = "How many seconds should it take to regenerate one use of the portable tester?", Saved = true)]
+        [ConVar.Replicated("ttt_portable_tester_regenerate_time", Help = "How many seconds should it take to regenerate one use of the portable tester?", Saved = true)]
         public static float RechargeTime { get; set; } = 30;
-        [ConVar.Server("ttt_portable_tester_multiple_use", Help = "Allow players to use the tester multiple times?", Saved = true)]
+        [ConVar.Replicated("ttt_portable_tester_multiple_use", Help = "Allow players to use the tester multiple times?", Saved = true)]
         public static bool AllowMultiUse { get; set; } = false;
         #endregion
 
@@ -32,8 +32,9 @@ namespace end360
         public TimeSince TimeSinceLastRecharge { get; set; } = 0;
 
         TimeSince TimeSinceLastUse = 0;
-        readonly HashSet<TerrorTown.Player> Users = new(MaxUses);
 
+        HashSet<TerrorTown.Player> Users { get; set; } = new(MaxUses);
+        
         public override void Spawn()
         {
             base.Spawn();
@@ -54,6 +55,15 @@ namespace end360
                 Uses++;
                 TimeSinceLastRecharge = 0;
             }
+        }
+
+        public bool HasUsed(Entity player)
+        {
+            if (player != null && Users != null)
+            {
+                return Users.Contains(player);
+            }
+            return false;
         }
 
         public override void TakeDamage(DamageInfo info)
@@ -91,7 +101,7 @@ namespace end360
                 && (AllowMultiUse || !Users.Contains(ply));
 
         [Event("end360.ttt.player_tested")]
-        public void OnTest(TerrorTown.Player ply, TeamAlignment alignment)
+        public static void OnTest(PortableTesterPlaced tester, TerrorTown.Player ply, TeamAlignment alignment)
         {
             MyGame.Current.EventSystem.AddEventToLog(new BaseEvent()
             {
@@ -102,34 +112,43 @@ namespace end360
 
             if (BroadcastMessage)
             {
-                PopupSystem.DisplayPopup(To.Everyone, $"{ply.Client.Name} tested as a {alignment}.", ply.Team.TeamColour, "Portable Tester");
+                PopupSystem.DisplayPopup(To.Everyone, $"{ply.Client.Name} tested as {alignment}.", ply.Team.TeamColour, "Portable Tester");
             }
-            else if (Owner != null)
+            else if (tester.Owner != null)
             {
                 PopupSystem.DisplayPopup(To.Multiple(Game.Clients.Where(c =>
                 {
                     if (c.Pawn is TerrorTown.Player ply)
                         return ply.Team is Detective;
                     return false;
-                })), $"{ply.Client.Name} tested as a {alignment}.", ply.Team.TeamColour, "Portable Tester");
+                })), $"{ply.Client.Name} tested as {alignment}.", ply.Team.TeamColour, "Portable Tester");
             }
 
             if (alignment == TeamAlignment.Traitor)
             {
-                PlaySound("test negative").SetVolume(4);
+                tester.PlaySound("test negative").SetVolume(4);
             }
             else
             {
-                PlaySound("test positive").SetVolume(8);
+                tester.PlaySound("test positive").SetVolume(8);
             }
+        }
+
+        [ClientRpc]
+        void OnUseClient(Entity user)
+        {
+            if (user is TerrorTown.Player ply)
+                Users.Add(ply);
         }
 
         public bool OnUse(Entity user)
         {
             if (user is TerrorTown.Player ply && ply.Team != null)
             {
-                Event.Run("end360.ttt.player_tested", ply, ply.Team.TeamAlignment);
+                Event.Run("end360.ttt.player_tested", this, ply, ply.Team.TeamAlignment);
                 Users.Add(ply);
+                OnUseClient(user); // I was trying to send it to just the person who used it but I can't seem to figure out how to get it to accept To
+                
                 Uses--;
                 TimeSinceLastUse = 0;
                 TimeSinceLastRecharge = 0;
