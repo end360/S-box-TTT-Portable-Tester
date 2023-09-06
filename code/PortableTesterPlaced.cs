@@ -2,8 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TerrorTown;
 
 namespace end360.TTT
@@ -25,16 +23,18 @@ namespace end360.TTT
         [ConVar.Replicated("ttt_portable_tester_multiple_use", Help = "Allow players to use the tester multiple times?", Saved = true)]
         public static bool AllowMultiUse { get; set; } = false;
         #endregion
-
+        #region Networked Variables
         [Net]
         public int Uses { get; set; }
         [Net]
         public TimeSince TimeSinceLastRecharge { get; set; } = 0;
-
+        #endregion
+        #region Variables
         TimeSince TimeSinceLastUse = 0;
+        HashSet<TerrorTown.Player> Users= new(MaxUses);
+        #endregion
 
-        HashSet<TerrorTown.Player> Users { get; set; } = new(MaxUses);
-        
+        #region Public Methods
         public override void Spawn()
         {
             base.Spawn();
@@ -47,16 +47,6 @@ namespace end360.TTT
             RenderColor = Color.Blue;
         }
 
-        [GameEvent.Tick.Server]
-        public void TryRecharge()
-        {
-            if (ShouldRecharge && Uses < MaxUses && TimeSinceLastRecharge > RechargeTime)
-            {
-                Uses++;
-                TimeSinceLastRecharge = 0;
-            }
-        }
-
         public bool HasUsed(Entity player)
         {
             if (player != null && Users != null)
@@ -66,39 +56,17 @@ namespace end360.TTT
             return false;
         }
 
-        public override void TakeDamage(DamageInfo info)
-        {
-            if (info.HasTag("physics_impact")) return;
-            base.TakeDamage(info);
-            if (Game.IsServer && info.Attacker is TerrorTown.Player ply)
-            {
-                MyGame.Current.EventSystem.AddEventToLog(new()
-                {
-                    EventString = $"{ply.Client.Name} dealt {info.Damage} damage to a portable tester using {info.Weapon?.GetType().Name}.",
-                    Icon = "error",
-                    PlayersInvolved = new() { ply.Client.SteamId }
-                });
-            }
-            else if (Game.IsServer)
-            {
-                MyGame.Current.EventSystem.AddEventToLog(new()
-                {
-                    EventString = $"{info.Attacker} dealt {info.Damage} damage to a portable tester using {info.Weapon?.GetType().Name}.",
-                    Icon = "error"
-                });
-            }
-        }
-        public override void OnKilled()
-        {
-            Delete();
-        }
-
         public bool IsUsable(Entity user) => Uses > 0
                 && TimeSinceLastUse > 1f
                 && user is TerrorTown.Player ply
                 && ply.Team != null
                 && (DetectiveUsable || ply.Team is not Detective)
                 && (AllowMultiUse || !Users.Contains(ply));
+
+        public override void OnKilled()
+        {
+            Delete();
+        }
 
         [Event("end360.ttt.player_tested")]
         public static void OnTest(PortableTesterPlaced tester, TerrorTown.Player ply, TeamAlignment alignment)
@@ -134,13 +102,6 @@ namespace end360.TTT
             }
         }
 
-        [ClientRpc]
-        void OnUseClient(Entity user)
-        {
-            if (user is TerrorTown.Player ply)
-                Users.Add(ply);
-        }
-
         public bool OnUse(Entity user)
         {
             if (user is TerrorTown.Player ply && ply.Team != null)
@@ -148,7 +109,7 @@ namespace end360.TTT
                 Event.Run("end360.ttt.player_tested", this, ply, ply.Team.TeamAlignment);
                 Users.Add(ply);
                 OnUseClient(user); // I was trying to send it to just the person who used it but I can't seem to figure out how to get it to accept To
-                
+
                 Uses--;
                 TimeSinceLastUse = 0;
                 TimeSinceLastRecharge = 0;
@@ -159,6 +120,48 @@ namespace end360.TTT
             }
 
             return false;
+        }
+
+        public override void TakeDamage(DamageInfo info)
+        {
+            if (info.HasTag("physics_impact")) return;
+            base.TakeDamage(info);
+            if (Game.IsServer && info.Attacker is TerrorTown.Player ply)
+            {
+                MyGame.Current.EventSystem.AddEventToLog(new()
+                {
+                    EventString = $"{ply.Client.Name} dealt {info.Damage} damage to a portable tester using {info.Weapon?.GetType().Name}.",
+                    Icon = "error",
+                    PlayersInvolved = new() { ply.Client.SteamId }
+                });
+            }
+            else if (Game.IsServer)
+            {
+                MyGame.Current.EventSystem.AddEventToLog(new()
+                {
+                    EventString = $"{info.Attacker} dealt {info.Damage} damage to a portable tester using {info.Weapon?.GetType().Name}.",
+                    Icon = "error"
+                });
+            }
+        }
+
+        #endregion
+
+        [ClientRpc]
+        void OnUseClient(Entity user)
+        {
+            if (user is TerrorTown.Player ply)
+                Users.Add(ply);
+        }
+
+        [GameEvent.Tick.Server]
+        void Tick()
+        {
+            if (ShouldRecharge && Uses < MaxUses && TimeSinceLastRecharge > RechargeTime)
+            {
+                Uses++;
+                TimeSinceLastRecharge = 0;
+            }
         }
     }
 }

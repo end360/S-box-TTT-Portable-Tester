@@ -1,20 +1,15 @@
 ﻿using Editor;
 using Sandbox;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TerrorTown;
 
 namespace end360.TTT
 {
-    [Library("ttt_equipment_portabletester")]
-    [HammerEntity]
-    [Title("Portable Tester")]
     [Category("Equipment")]
-    [EditorModel("models/microwave/microwave.vmdl")]
     [DetectiveBuyable("Special", 1, 1)]
+    [EditorModel("models/microwave/microwave.vmdl")]
+    [HammerEntity]
+    [Library("ttt_equipment_portabletester")]
+    [Title("Portable Tester")]
     public class PortableTester : Carriable
     {
         public override string WorldModelPath => "models/microwave/microwave.vmdl";
