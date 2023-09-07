@@ -9,19 +9,14 @@ namespace end360.TTT
         static PortableTesterPlaced? Tester => Game.LocalPawn?.Components.Get<PortableTesterInspectionComponent>()?.LookingAt;
         static bool ShouldDraw => Tester != null && Tester.IsValid && Tester.Position.DistanceSquared(Game.LocalPawn.Position) < 384*384;
         static bool ShouldDrawRecharge => ShouldDraw && PortableTesterPlaced.ShouldRecharge && Tester!.Uses < PortableTesterPlaced.MaxUses;
-        static int RechargeTime => (int) Math.Round(PortableTesterPlaced.RechargeTime - Tester?.TimeSinceLastRecharge ?? 0);
+        static int RechargeTime => (int) Math.Round(Tester?.TimeUntilRecharge.Relative ?? 0);
 
         static PortableTesterHUD? Instance;
         /// <summary>
         /// Rebuilds the HUD, if the current instance is valid it will be deleted.
         /// </summary>
-        public static void RebuildHUD()
+        static void RebuildHUD()
         {
-            if(!Game.IsClient)
-            {
-                Log.Error("RebuildHUD called on non-client.");
-                return;
-            }
             if (Instance != null && Instance.IsValid)
                 Instance.Delete();
 

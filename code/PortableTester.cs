@@ -20,11 +20,19 @@ namespace end360.TTT
 
             if(Input.Pressed("Attack1") && Game.IsServer)
             {
-                var placed = new PortableTesterPlaced();
-                placed.Position = Owner.AimRay.Position + Owner.AimRay.Forward * 34;
-                placed.Velocity = Owner.AimRay.Forward * 180;
-                placed.Owner = Owner;
+                new PortableTesterPlaced
+                {
+                    Position = Owner.AimRay.Position + Owner.AimRay.Forward * 34,
+                    Velocity = Owner.AimRay.Forward * 180,
+                    Owner = Owner
+                };
                 Delete();
+
+                MyGame.Current.EventSystem.AddEventToLog(new()
+                {
+                    EventString = $"{cl.Name} placed a portable tester.",
+                    PlayersInvolved = new() { cl.SteamId }
+                });
             }
         }
 

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using TerrorTown;
 
 namespace end360.TTT
@@ -27,15 +28,17 @@ namespace end360.TTT
         [Net]
         public int Uses { get; set; }
         [Net]
-        public TimeSince TimeSinceLastRecharge { get; set; } = 0;
+        public TimeUntil TimeUntilRecharge { get; set; } = 0;
         #endregion
         #region Properties
         public PointLightEntity? PointLight => Children.OfType<PointLightEntity>().FirstOrDefault();
+        public RoleButton? RoleButton => Children.OfType<RoleButton>().FirstOrDefault();
         #endregion
         #region Variables
         TimeUntil DisableLight = 0;
-        TimeSince TimeSinceLastUse = 0;
-        readonly HashSet<TerrorTown.Player> Users= new(MaxUses);
+        TimeUntil UseTime = 0;
+        bool FakeNextTest = false;
+        readonly HashSet<TerrorTown.Player> Users = new(MaxUses);
         #endregion
 
         #region Public Methods
@@ -59,6 +62,18 @@ namespace end360.TTT
             };
             light.SetParent(this);
 
+            var btn = new RoleButton()
+            {
+                EnableDrawing = false,
+                Description = "Fake the next test",
+                RemoveOnUse = true,
+                Radius = 1150,
+                RoleName = "Traitor"
+            };
+            btn.SetParent(this);
+            btn.LocalPosition = Vector3.Up * 48;
+            btn.AddOutputEvent("OnPressed", OnTestFaked);
+
         }
 
         public bool HasUsed(Entity player)
@@ -71,7 +86,7 @@ namespace end360.TTT
         }
 
         public bool IsUsable(Entity user) => Uses > 0
-                && TimeSinceLastUse > 1f
+                && UseTime
                 && user is TerrorTown.Player ply
                 && ply.Team != null
                 && (DetectiveUsable || ply.Team is not Detective)
@@ -86,15 +101,16 @@ namespace end360.TTT
         {
             if (user is TerrorTown.Player ply && ply.Team != null)
             {
-                Event.Run("end360.ttt.player_tested", this, ply);
-                OnTest(ply);
+                Event.Run("end360.ttt.player_tested", this, ply, FakeNextTest);
+                OnTest(ply, FakeNextTest);
+                FakeNextTest = false;
                 Users.Add(ply);
                 OnUseClient(user); // I was trying to send it to just the person who used it but I can't seem to figure out how to get it to accept To
 
                 Uses--;
-                TimeSinceLastUse = 0;
-                if(TimeSinceLastRecharge >= RechargeTime)
-                    TimeSinceLastRecharge = 0;
+                UseTime = 3;
+                if (TimeUntilRecharge)
+                    TimeUntilRecharge = RechargeTime;
                 if (Uses <= 0 && !ShouldRecharge)
                 {
                     Delete();
@@ -104,55 +120,35 @@ namespace end360.TTT
             return false;
         }
 
-        public void OnTest(TerrorTown.Player ply)
+        public void OnTest(TerrorTown.Player ply, bool isFakeTest)
         {
-            var alignment = ply.Team.TeamAlignment;
+            var alignment = isFakeTest ? (ply.Team.TeamAlignment == TeamAlignment.Innocent ? TeamAlignment.Traitor : TeamAlignment.Innocent) : ply.Team.TeamAlignment;
+            var color = alignment == TeamAlignment.Innocent ? Color.Green : Color.Red;
             MyGame.Current.EventSystem.AddEventToLog(new BaseEvent()
             {
-                EventString = $"{ply.Client.Name} tested as {alignment} using a portable tester.",
+                EventString = $"{ply.Client.Name} tested as {alignment}{(isFakeTest ? " (faked)" : "")} using a portable tester.",
                 Icon = "group",
                 PlayersInvolved = new() { ply.Client.SteamId }
             });
 
-            if (BroadcastMessage)
-            {
-                PopupSystem.DisplayPopup(To.Everyone, $"{ply.Client.Name} tested as {alignment}.", ply.Team.TeamColour, "Portable Tester");
-            }
-            else
-            {
-                PopupSystem.DisplayPopup(To.Multiple(Game.Clients.Where(c =>
-                {
-                    if (c.Pawn is TerrorTown.Player ply)
-                        return ply.Team is Detective;
-                    return false;
-                })), $"{ply.Client.Name} tested as {alignment}.", ply.Team.TeamColour, "Portable Tester");
-            }
+            var MessageFilter = BroadcastMessage ? To.Everyone : To.Multiple(Teams.Get<Detective>().Players.Select(p => p.Client));
+            PopupSystem.DisplayPopup(MessageFilter, $"{ply.Client.Name} tested as {alignment}.", color, "Portable Tester");
 
-            if (alignment == TeamAlignment.Traitor)
+            var sound = alignment == TeamAlignment.Traitor ? "test negative" : "test positive";
+            PlaySound(sound).SetVolume(8);
+
+            if (PointLight != null)
             {
-                PlaySound("test negative").SetVolume(4);
-                if(PointLight != null)
-                {
-                    PointLight.Color = Color.Red;
-                    PointLight.Enabled = true;
-                    DisableLight = 1f;
-                }
-            }
-            else
-            {
-                PlaySound("test positive").SetVolume(8);
-                if (PointLight != null)
-                {
-                    PointLight.Color = Color.Green;
-                    PointLight.Enabled = true;
-                    DisableLight = 1f;
-                }
+                PointLight.Color = color;
+                PointLight.Enabled = true;
+                DisableLight = 1f;
             }
         }
 
         public override void TakeDamage(DamageInfo info)
         {
             if (info.HasTag("physics_impact")) return;
+
             base.TakeDamage(info);
             if (Game.IsServer && info.Attacker is TerrorTown.Player ply)
             {
@@ -175,6 +171,10 @@ namespace end360.TTT
 
         #endregion
 
+        /// <summary>
+        /// Called when someone uses a portable tester.
+        /// </summary>
+        /// <param name="user"></param>
         [ClientRpc]
         void OnUseClient(Entity user)
         {
@@ -182,16 +182,42 @@ namespace end360.TTT
                 Users.Add(ply);
         }
 
+        /// <summary>
+        /// Called when a traitor activates the role button to fake the next test.
+        /// </summary>
+        /// <param name="activator"></param>
+        /// <param name="delay"></param>
+        /// <returns>ValueTask.CompletedTask</returns>
+        ValueTask OnTestFaked(Entity activator, float delay)
+        {
+            Log.Info($"{activator} faked test on {this}");
+            if (activator is TerrorTown.Player ply)
+            {
+                FakeNextTest = true;
+                Log.Info($"Faking the next test on {this}");
+                MyGame.Current.EventSystem.AddEventToLog(new()
+                {
+                    EventString = $"{ply.Client.Name} set it so that {this} will fake (invert the outcome of) the next test.",
+                    PlayersInvolved = new() { ply.Client.Id }
+                });
+            }
+            return ValueTask.CompletedTask;
+        }
+
+        /// <summary>
+        /// Recharge the tester, if it should be recharged, and disable the light if it should be disabled.
+        /// </summary>
         [GameEvent.Tick.Server]
         void Tick()
         {
-            if (ShouldRecharge && Uses < MaxUses && TimeSinceLastRecharge > RechargeTime)
+            if (ShouldRecharge && Uses < MaxUses && TimeUntilRecharge)
             {
                 Uses++;
-                TimeSinceLastRecharge = 0;
+                if(Uses != MaxUses)
+                    TimeUntilRecharge = RechargeTime;
             }
 
-            if(DisableLight && PointLight != null)
+            if (DisableLight && PointLight != null)
             {
                 PointLight.Enabled = false;
             }
