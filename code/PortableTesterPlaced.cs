@@ -29,9 +29,13 @@ namespace end360.TTT
         [Net]
         public TimeSince TimeSinceLastRecharge { get; set; } = 0;
         #endregion
+        #region Properties
+        public PointLightEntity? PointLight => Children.OfType<PointLightEntity>().FirstOrDefault();
+        #endregion
         #region Variables
+        TimeUntil DisableLight = 0;
         TimeSince TimeSinceLastUse = 0;
-        HashSet<TerrorTown.Player> Users= new(MaxUses);
+        readonly HashSet<TerrorTown.Player> Users= new(MaxUses);
         #endregion
 
         #region Public Methods
@@ -45,6 +49,16 @@ namespace end360.TTT
             Uses = MaxUses;
             Tags.Add("solid", "canpush");
             RenderColor = Color.Blue;
+
+            var light = new PointLightEntity()
+            {
+                Enabled = false,
+                DynamicShadows = false,
+                Range = 96,
+                Brightness = 1
+            };
+            light.SetParent(this);
+
         }
 
         public bool HasUsed(Entity player)
@@ -68,9 +82,31 @@ namespace end360.TTT
             Delete();
         }
 
-        [Event("end360.ttt.player_tested")]
-        public static void OnTest(PortableTesterPlaced tester, TerrorTown.Player ply, TeamAlignment alignment)
+        public bool OnUse(Entity user)
         {
+            if (user is TerrorTown.Player ply && ply.Team != null)
+            {
+                Event.Run("end360.ttt.player_tested", this, ply);
+                OnTest(ply);
+                Users.Add(ply);
+                OnUseClient(user); // I was trying to send it to just the person who used it but I can't seem to figure out how to get it to accept To
+
+                Uses--;
+                TimeSinceLastUse = 0;
+                if(TimeSinceLastRecharge >= RechargeTime)
+                    TimeSinceLastRecharge = 0;
+                if (Uses <= 0 && !ShouldRecharge)
+                {
+                    Delete();
+                }
+            }
+
+            return false;
+        }
+
+        public void OnTest(TerrorTown.Player ply)
+        {
+            var alignment = ply.Team.TeamAlignment;
             MyGame.Current.EventSystem.AddEventToLog(new BaseEvent()
             {
                 EventString = $"{ply.Client.Name} tested as {alignment} using a portable tester.",
@@ -82,7 +118,7 @@ namespace end360.TTT
             {
                 PopupSystem.DisplayPopup(To.Everyone, $"{ply.Client.Name} tested as {alignment}.", ply.Team.TeamColour, "Portable Tester");
             }
-            else if (tester.Owner != null)
+            else
             {
                 PopupSystem.DisplayPopup(To.Multiple(Game.Clients.Where(c =>
                 {
@@ -94,32 +130,24 @@ namespace end360.TTT
 
             if (alignment == TeamAlignment.Traitor)
             {
-                tester.PlaySound("test negative").SetVolume(4);
+                PlaySound("test negative").SetVolume(4);
+                if(PointLight != null)
+                {
+                    PointLight.Color = Color.Red;
+                    PointLight.Enabled = true;
+                    DisableLight = 1f;
+                }
             }
             else
             {
-                tester.PlaySound("test positive").SetVolume(8);
-            }
-        }
-
-        public bool OnUse(Entity user)
-        {
-            if (user is TerrorTown.Player ply && ply.Team != null)
-            {
-                Event.Run("end360.ttt.player_tested", this, ply, ply.Team.TeamAlignment);
-                Users.Add(ply);
-                OnUseClient(user); // I was trying to send it to just the person who used it but I can't seem to figure out how to get it to accept To
-
-                Uses--;
-                TimeSinceLastUse = 0;
-                TimeSinceLastRecharge = 0;
-                if (Uses <= 0 && !ShouldRecharge)
+                PlaySound("test positive").SetVolume(8);
+                if (PointLight != null)
                 {
-                    Delete();
+                    PointLight.Color = Color.Green;
+                    PointLight.Enabled = true;
+                    DisableLight = 1f;
                 }
             }
-
-            return false;
         }
 
         public override void TakeDamage(DamageInfo info)
@@ -161,6 +189,11 @@ namespace end360.TTT
             {
                 Uses++;
                 TimeSinceLastRecharge = 0;
+            }
+
+            if(DisableLight && PointLight != null)
+            {
+                PointLight.Enabled = false;
             }
         }
     }

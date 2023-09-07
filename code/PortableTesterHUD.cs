@@ -7,7 +7,7 @@ namespace end360.TTT
     public partial class PortableTesterHUD
     {
         static PortableTesterPlaced? Tester => Game.LocalPawn?.Components.Get<PortableTesterInspectionComponent>()?.LookingAt;
-        static bool ShouldDraw => Tester != null && Tester.IsValid;
+        static bool ShouldDraw => Tester != null && Tester.IsValid && Tester.Position.DistanceSquared(Game.LocalPawn.Position) < 384*384;
         static bool ShouldDrawRecharge => ShouldDraw && PortableTesterPlaced.ShouldRecharge && Tester!.Uses < PortableTesterPlaced.MaxUses;
         static int RechargeTime => (int) Math.Round(PortableTesterPlaced.RechargeTime - Tester?.TimeSinceLastRecharge ?? 0);
 

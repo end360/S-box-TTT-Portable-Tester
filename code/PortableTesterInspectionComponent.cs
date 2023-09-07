@@ -6,6 +6,10 @@ namespace end360.TTT
     public class PortableTesterInspectionComponent : SimulatedComponent, ISingletonComponent
     {
         public PortableTesterPlaced? LookingAt { get; protected set; }
+
+        [Event("Player.PostSpawn")]
+        static void PostSpawn(TerrorTown.Player ply) => ply.Components.Create<PortableTesterInspectionComponent>();
+
         public override void Simulate(IClient cl)
         {
             if (!Game.IsClient) return;
@@ -17,8 +21,5 @@ namespace end360.TTT
             else
                 LookingAt = null;
         }
-
-        [Event("Player.PostSpawn")]
-        public static void PostSpawn(TerrorTown.Player ply) => ply.Components.Create<PortableTesterInspectionComponent>();
     }
 }
