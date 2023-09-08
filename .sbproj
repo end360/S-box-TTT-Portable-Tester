@@ -90,6 +90,36 @@
         "DefaultValue": "false",
         "Description": "Allow players to use the tester multiple times?",
         "Group": "TTT: Portable Tester"
+      },
+      {
+        "DisplayType": "Boolean",
+        "Choices": [],
+        "ConVarName": "ttt_portable_tester_fake",
+        "DisplayName": "Allow Traitor Button",
+        "DefaultValue": "true",
+        "Description": "Allow for traitors to fake the next test result. This will invert the result, so if someone is innocent and they test it will show traitor and vice versa.",
+        "Group": "TTT: Portable Tester"
+      },
+      {
+        "DisplayType": "Boolean",
+        "Choices": [],
+        "ConVarName": "ttt_portable_tester_fake_recharge",
+        "DisplayName": "Recharge Traitor Button",
+        "DefaultValue": "false",
+        "Description": "Allow for the traitor button to fake the test to recharge.",
+        "Group": "TTT: Portable Tester"
+      },
+      {
+        "DisplayType": "Float",
+        "Choices": [],
+        "ConVarName": "ttt_portable_tester_fake_recharge_time",
+        "DisplayName": "Traitor Button Recharge Time",
+        "DefaultValue": "30",
+        "Description": "Set this to the amount of time it should take to recharge the traitor button after it is used.",
+        "Group": "TTT: Portable Tester",
+        "Minimum": 1,
+        "Maximum": 300,
+        "Step": 1
       }
     ],
     "ParentPackage": "thieves.terrortown"
