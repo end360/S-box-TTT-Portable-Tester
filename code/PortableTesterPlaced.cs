@@ -23,6 +23,12 @@ namespace end360.TTT
         public static float RechargeTime { get; set; } = 30;
         [ConVar.Replicated("ttt_portable_tester_multiple_use", Help = "Allow players to use the tester multiple times?", Saved = true)]
         public static bool AllowMultiUse { get; set; } = false;
+        [ConVar.Server("ttt_portable_tester_fake", Help = "Should traitors be allowed to fake the next test?", Saved = true)]
+        public static bool AllowFakingTest { get; set; } = true;
+        [ConVar.Server("ttt_portable_tester_fake_recharge", Help = "Should the traitor button for the fake test recharge?", Saved = true)]
+        public static bool RechargeFakeTest { get; set; } = false;
+        [ConVar.Server("ttt_portable_tester_fake_recharge_time", Help = "How many seconds should it take for the fake test to recharge?", Saved = true)]
+        public static float FakeTestRechargeTime { get; set; } = 30;
         #endregion
         #region Networked Variables
         [Net]
@@ -37,6 +43,7 @@ namespace end360.TTT
         #region Variables
         TimeUntil DisableLight = 0;
         TimeUntil UseTime = 0;
+        TimeUntil FakeTestRecharge = 0;
         bool FakeNextTest = false;
         readonly HashSet<TerrorTown.Player> Users = new(MaxUses);
         #endregion
@@ -62,18 +69,7 @@ namespace end360.TTT
             };
             light.SetParent(this);
 
-            var btn = new RoleButton()
-            {
-                EnableDrawing = false,
-                Description = "Fake the next test",
-                RemoveOnUse = true,
-                Radius = 1150,
-                RoleName = "Traitor"
-            };
-            btn.SetParent(this);
-            btn.LocalPosition = Vector3.Up * 48;
-            btn.AddOutputEvent("OnPressed", OnTestFaked);
-
+            CreateRoleButton();
         }
 
         public bool HasUsed(Entity player)
@@ -150,26 +146,53 @@ namespace end360.TTT
             if (info.HasTag("physics_impact")) return;
 
             base.TakeDamage(info);
-            if (Game.IsServer && info.Attacker is TerrorTown.Player ply)
+            if (!Game.IsServer) return;
+
+            if (info.Attacker is TerrorTown.Player ply)
             {
                 MyGame.Current.EventSystem.AddEventToLog(new()
                 {
-                    EventString = $"{ply.Client.Name} dealt {info.Damage} damage to a portable tester using {info.Weapon?.GetType().Name}.",
+                    EventString = $"{ply.Client.Name} dealt {Math.Round(info.Damage)} damage to a portable tester using {info.Weapon?.GetType().Name}.",
                     Icon = "error",
                     PlayersInvolved = new() { ply.Client.SteamId }
                 });
             }
-            else if (Game.IsServer)
+            else if (info.Attacker.Owner is TerrorTown.Player ply2)
             {
                 MyGame.Current.EventSystem.AddEventToLog(new()
                 {
-                    EventString = $"{info.Attacker} dealt {info.Damage} damage to a portable tester using {info.Weapon?.GetType().Name}.",
+                    EventString = $"{ply2.Client.Name} dealt {Math.Round(info.Damage)} damage to a portable tester using {info.Weapon?.GetType().Name ?? info.Attacker?.GetType().Name}.",
+                    Icon = "error"
+                });
+            } else
+            {
+                MyGame.Current.EventSystem.AddEventToLog(new()
+                {
+                    EventString = $"{info.Attacker} dealt {Math.Round(info.Damage)} damage to a portable tester.",
                     Icon = "error"
                 });
             }
         }
 
         #endregion
+
+        void CreateRoleButton()
+        {
+            if (AllowFakingTest)
+            {
+                var btn = new RoleButton()
+                {
+                    EnableDrawing = false,
+                    Description = "Fake the next test",
+                    RemoveOnUse = true,
+                    Radius = 1150,
+                    RoleName = "Traitor"
+                };
+                btn.SetParent(this);
+                btn.LocalPosition = Vector3.Up * 48;
+                btn.AddOutputEvent("OnPressed", OnTestFaked);
+            }
+        }
 
         /// <summary>
         /// Called when someone uses a portable tester.
@@ -190,11 +213,10 @@ namespace end360.TTT
         /// <returns>ValueTask.CompletedTask</returns>
         ValueTask OnTestFaked(Entity activator, float delay)
         {
-            Log.Info($"{activator} faked test on {this}");
-            if (activator is TerrorTown.Player ply)
+            if (AllowFakingTest && activator is TerrorTown.Player ply)
             {
                 FakeNextTest = true;
-                Log.Info($"Faking the next test on {this}");
+                FakeTestRecharge = FakeTestRechargeTime;
                 MyGame.Current.EventSystem.AddEventToLog(new()
                 {
                     EventString = $"{ply.Client.Name} set it so that {this} will fake (invert the outcome of) the next test.",
@@ -217,10 +239,17 @@ namespace end360.TTT
                     TimeUntilRecharge = RechargeTime;
             }
 
+            if(RechargeFakeTest && (RoleButton == null || !RoleButton.IsValid ) && FakeTestRecharge)
+            {
+                CreateRoleButton();
+            }
+
             if (DisableLight && PointLight != null)
             {
                 PointLight.Enabled = false;
             }
+
+
         }
     }
 }
